@@ -23,7 +23,7 @@ return new class extends Migration {
             $table->decimal('purchase_price', 10, 2)->default(0.00);
             $table->decimal('price', 10, 2)->default(0.00);
             $table->decimal('discount_price', 10, 2)->default(0.00);
-            $table->integer('stock')->default(0);
+            $table->decimal('stock', 10, 2)->default(0.00);
             $table->json('specs')->nullable();
             $table->json('meta')->nullable();
             $table->boolean('is_active')->default(true);

@@ -1,0 +1,204 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreReturnRequest;
+use App\Http\Requests\StoreSaleRequest;
+use App\Http\Requests\UpdateSaleRequest;
+use App\Models\Product;
+use App\Models\Sale;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class SaleController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        $sales = Sale::with(['cashier', 'shift'])->orderByDesc('created_at')->get();
+
+        return response()->json($sales);
+    }
+
+    public function store(StoreSaleRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $items = $data['items'];
+
+        foreach ($items as $index => $item) {
+            $productId = (int) $item['product_id'];
+            if ($productId > 0) {
+                $product = Product::find($productId);
+                if ($product && $product->unit !== $item['unit']) {
+                    throw ValidationException::withMessages([
+                        "items.{$index}.unit" => ["Product unit is '{$product->unit}', cannot use '{$item['unit']}'."],
+                    ]);
+                }
+            }
+        }
+
+        $totalPrice = 0;
+        $totalQty = 0;
+
+        foreach ($items as $item) {
+            $totalPrice += (float) $item['price'] * (float) $item['quantity'];
+            $totalQty += (float) $item['quantity'];
+        }
+
+        $sale = DB::transaction(function () use ($data, $items, $totalPrice, $totalQty) {
+            foreach ($items as $item) {
+                $productId = (int) $item['product_id'];
+                if ($productId > 0) {
+                    $product = Product::findOrFail($productId);
+                    $product->decrement('stock', $item['quantity']);
+                }
+            }
+
+            return Sale::create([
+                'cashier_id' => $data['cashier_id'] ?? null,
+                'shift_id' => $data['shift_id'] ?? null,
+                'shopper_id' => $data['shopper_id'] ?? null,
+                'items' => $items,
+                'total_qty' => (int) round($totalQty),
+                'total_price' => round($totalPrice, 2),
+                'status' => Sale::STATUS_COMPLETED,
+            ]);
+        });
+
+        return response()->json($sale->load(['cashier', 'shift']), 201);
+    }
+
+    public function show(Sale $sale): JsonResponse
+    {
+        return response()->json($sale->load(['cashier', 'shift']));
+    }
+
+    public function update(UpdateSaleRequest $request, Sale $sale): JsonResponse
+    {
+        $data = $request->validated();
+
+        if (isset($data['items'])) {
+            $newItems = $data['items'];
+            $totalPrice = 0;
+            $totalQty = 0;
+            foreach ($newItems as $item) {
+                $totalPrice += (float) $item['price'] * (float) $item['quantity'];
+                $totalQty += (float) $item['quantity'];
+            }
+            $data['total_qty'] = (int) round($totalQty);
+            $data['total_price'] = round($totalPrice, 2);
+
+            DB::transaction(function () use ($sale, $data, $newItems) {
+                $oldItems = $sale->items ?? [];
+                // Вернуть остатки по старым позициям (кроме произвольных, product_id = 0)
+                foreach ($oldItems as $item) {
+                    $productId = (int) ($item['product_id'] ?? 0);
+                    if ($productId > 0) {
+                        $product = Product::find($productId);
+                        if ($product) {
+                            $product->increment('stock', (float) ($item['quantity'] ?? 0));
+                        }
+                    }
+                }
+                // Списать остатки по новым позициям (кроме произвольных)
+                foreach ($newItems as $item) {
+                    $productId = (int) ($item['product_id'] ?? 0);
+                    if ($productId > 0) {
+                        $product = Product::find($productId);
+                        if ($product) {
+                            $product->decrement('stock', (float) ($item['quantity'] ?? 0));
+                        }
+                    }
+                }
+                $sale->update($data);
+            });
+        } else {
+            $sale->update($data);
+        }
+
+        return response()->json($sale->load(['cashier', 'shift']));
+    }
+
+    public function storeReturn(StoreReturnRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $items = $data['items'];
+
+        $totalPrice = 0;
+        $totalQty = 0;
+        foreach ($items as $item) {
+            $totalPrice += (float) $item['price'] * (float) $item['quantity'];
+            $totalQty += (float) $item['quantity'];
+        }
+
+        $sale = DB::transaction(function () use ($data, $items, $totalPrice, $totalQty) {
+            foreach ($items as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                if ($productId > 0) {
+                    $product = Product::find($productId);
+                    if ($product) {
+                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
+                    }
+                }
+            }
+
+            return Sale::create([
+                'cashier_id' => $data['cashier_id'] ?? null,
+                'shift_id' => $data['shift_id'] ?? null,
+                'shopper_id' => null,
+                'items' => $items,
+                'total_qty' => (int) round($totalQty),
+                'total_price' => round($totalPrice, 2),
+                'status' => Sale::STATUS_RETURNED,
+            ]);
+        });
+
+        return response()->json($sale->load(['cashier', 'shift']), 201);
+    }
+
+    public function returnSale(Sale $sale): JsonResponse
+    {
+        if ($sale->status === Sale::STATUS_RETURNED) {
+            return response()->json(
+                ['message' => 'Продажа уже оформлена как возврат.'],
+                422
+            );
+        }
+
+        DB::transaction(function () use ($sale) {
+            $items = $sale->items ?? [];
+            foreach ($items as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                if ($productId > 0) {
+                    $product = Product::find($productId);
+                    if ($product) {
+                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
+                    }
+                }
+            }
+            $sale->update(['status' => Sale::STATUS_RETURNED]);
+        });
+
+        return response()->json($sale->fresh()->load(['cashier', 'shift']));
+    }
+
+    public function destroy(Sale $sale): JsonResponse
+    {
+        DB::transaction(function () use ($sale) {
+            $items = $sale->items ?? [];
+            foreach ($items as $item) {
+                $productId = (int) ($item['product_id'] ?? 0);
+                if ($productId > 0) {
+                    $product = Product::find($productId);
+                    if ($product) {
+                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
+                    }
+                }
+            }
+            $sale->delete();
+        });
+
+        return response()->json(null, 204);
+    }
+}
