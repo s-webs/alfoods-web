@@ -10,7 +10,7 @@ class Product extends Model
     public const UNIT_GRAM = 'g';
 
     protected $fillable = [
-        'category_id', 'name', 'new_name', 'barcode', 'images', 'description', 'unit', 'slug', 'purchase_price', 'price', 'discount_price', 'stock', 'specs', 'meta', 'is_active'
+        'category_id', 'name', 'new_name', 'barcode', 'images', 'description', 'unit', 'slug', 'purchase_price', 'price', 'discount_price', 'stock', 'stock_threshold', 'specs', 'meta', 'is_active'
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class Product extends Model
         'price' => 'float',
         'discount_price' => 'float',
         'stock' => 'float',
+        'stock_threshold' => 'float',
     ];
 
     /**

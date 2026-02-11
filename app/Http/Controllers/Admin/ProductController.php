@@ -41,6 +41,7 @@ class ProductController extends Controller
             'unit' => ['required', 'in:pcs,g'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'numeric'],
+            'stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -67,6 +68,7 @@ class ProductController extends Controller
             'unit' => ['required', 'in:pcs,g'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'numeric'],
+            'stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 

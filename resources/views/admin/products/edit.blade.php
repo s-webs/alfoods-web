@@ -43,6 +43,11 @@
                 <input type="number" step="0.01" name="stock" id="stock" value="{{ old('stock', $product->stock) }}"
                        class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-primary focus:border-primary">
             </div>
+            <div>
+                <label for="stock_threshold" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Порог остатков</label>
+                <input type="number" step="0.01" name="stock_threshold" id="stock_threshold" value="{{ old('stock_threshold', $product->stock_threshold ?? 0) }}"
+                       class="w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-primary focus:border-primary">
+            </div>
             <div class="flex items-center">
                 <input type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', $product->is_active) ? 'checked' : '' }}
                        class="rounded border-slate-300 text-primary focus:ring-primary">

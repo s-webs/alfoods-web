@@ -7,6 +7,7 @@ use App\Http\Requests\StoreReturnRequest;
 use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;
 use App\Models\Product;
+use App\Models\ProductSet;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +28,9 @@ class SaleController extends Controller
         $items = $data['items'];
 
         foreach ($items as $index => $item) {
+            $setId = isset($item['set_id']) ? (int) $item['set_id'] : 0;
             $productId = (int) $item['product_id'];
-            if ($productId > 0) {
+            if ($productId > 0 && $setId === 0) {
                 $product = Product::find($productId);
                 if ($product && $product->unit !== $item['unit']) {
                     throw ValidationException::withMessages([
@@ -48,11 +50,7 @@ class SaleController extends Controller
 
         $sale = DB::transaction(function () use ($data, $items, $totalPrice, $totalQty) {
             foreach ($items as $item) {
-                $productId = (int) $item['product_id'];
-                if ($productId > 0) {
-                    $product = Product::findOrFail($productId);
-                    $product->decrement('stock', $item['quantity']);
-                }
+                $this->decrementStockForItem($item);
             }
 
             return Sale::create([
@@ -91,25 +89,11 @@ class SaleController extends Controller
 
             DB::transaction(function () use ($sale, $data, $newItems) {
                 $oldItems = $sale->items ?? [];
-                // Вернуть остатки по старым позициям (кроме произвольных, product_id = 0)
                 foreach ($oldItems as $item) {
-                    $productId = (int) ($item['product_id'] ?? 0);
-                    if ($productId > 0) {
-                        $product = Product::find($productId);
-                        if ($product) {
-                            $product->increment('stock', (float) ($item['quantity'] ?? 0));
-                        }
-                    }
+                    $this->incrementStockForItem($item);
                 }
-                // Списать остатки по новым позициям (кроме произвольных)
                 foreach ($newItems as $item) {
-                    $productId = (int) ($item['product_id'] ?? 0);
-                    if ($productId > 0) {
-                        $product = Product::find($productId);
-                        if ($product) {
-                            $product->decrement('stock', (float) ($item['quantity'] ?? 0));
-                        }
-                    }
+                    $this->decrementStockForItem($item);
                 }
                 $sale->update($data);
             });
@@ -134,13 +118,7 @@ class SaleController extends Controller
 
         $sale = DB::transaction(function () use ($data, $items, $totalPrice, $totalQty) {
             foreach ($items as $item) {
-                $productId = (int) ($item['product_id'] ?? 0);
-                if ($productId > 0) {
-                    $product = Product::find($productId);
-                    if ($product) {
-                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
-                    }
-                }
+                $this->incrementStockForItem($item);
             }
 
             return Sale::create([
@@ -169,13 +147,7 @@ class SaleController extends Controller
         DB::transaction(function () use ($sale) {
             $items = $sale->items ?? [];
             foreach ($items as $item) {
-                $productId = (int) ($item['product_id'] ?? 0);
-                if ($productId > 0) {
-                    $product = Product::find($productId);
-                    if ($product) {
-                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
-                    }
-                }
+                $this->incrementStockForItem($item);
             }
             $sale->update(['status' => Sale::STATUS_RETURNED]);
         });
@@ -188,17 +160,59 @@ class SaleController extends Controller
         DB::transaction(function () use ($sale) {
             $items = $sale->items ?? [];
             foreach ($items as $item) {
-                $productId = (int) ($item['product_id'] ?? 0);
-                if ($productId > 0) {
-                    $product = Product::find($productId);
-                    if ($product) {
-                        $product->increment('stock', (float) ($item['quantity'] ?? 0));
-                    }
-                }
+                $this->incrementStockForItem($item);
             }
             $sale->delete();
         });
 
         return response()->json(null, 204);
+    }
+
+    private function decrementStockForItem(array $item): void
+    {
+        $setId = isset($item['set_id']) ? (int) $item['set_id'] : 0;
+        $productId = (int) ($item['product_id'] ?? 0);
+        $qty = (float) ($item['quantity'] ?? 0);
+
+        if ($setId > 0) {
+            $set = ProductSet::with('items')->find($setId);
+            if ($set) {
+                foreach ($set->items as $setItem) {
+                    $product = Product::find($setItem->product_id);
+                    if ($product) {
+                        $product->decrement('stock', $qty * $setItem->quantity);
+                    }
+                }
+            }
+        } elseif ($productId > 0) {
+            $product = Product::find($productId);
+            if ($product) {
+                $product->decrement('stock', $qty);
+            }
+        }
+    }
+
+    private function incrementStockForItem(array $item): void
+    {
+        $setId = isset($item['set_id']) ? (int) $item['set_id'] : 0;
+        $productId = (int) ($item['product_id'] ?? 0);
+        $qty = (float) ($item['quantity'] ?? 0);
+
+        if ($setId > 0) {
+            $set = ProductSet::with('items')->find($setId);
+            if ($set) {
+                foreach ($set->items as $setItem) {
+                    $product = Product::find($setItem->product_id);
+                    if ($product) {
+                        $product->increment('stock', $qty * $setItem->quantity);
+                    }
+                }
+            }
+        } elseif ($productId > 0) {
+            $product = Product::find($productId);
+            if ($product) {
+                $product->increment('stock', $qty);
+            }
+        }
     }
 }

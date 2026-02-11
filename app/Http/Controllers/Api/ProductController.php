@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -26,7 +27,17 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $product = Product::create($request->validated());
+        $data = $request->validated();
+
+        if (empty($data['slug'])) {
+            $base = Str::slug($data['name']);
+            $data['slug'] = $base ?: 'product-' . uniqid();
+            while (Product::where('slug', $data['slug'])->exists()) {
+                $data['slug'] = $base . '-' . Str::random(6);
+            }
+        }
+
+        $product = Product::create($data);
 
         return response()->json($product->load('category'), 201);
     }

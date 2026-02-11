@@ -20,7 +20,8 @@ class StoreSaleRequest extends FormRequest
             'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
             'shopper_id' => ['nullable', 'integer'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'min:0'], // 0 = произвольная позиция (только снимок), без списания остатка
+            'items.*.product_id' => ['required', 'integer', 'min:0'], // 0 = произвольная позиция или сет
+            'items.*.set_id' => ['nullable', 'integer', 'exists:product_sets,id'],
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
