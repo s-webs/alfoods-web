@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Admin\CashierController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\CounterpartyController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductReceiptController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\Admin\ShiftController;
 use App\Http\Controllers\Admin\UserController;
@@ -45,6 +47,21 @@ Route::middleware(['auth', 'verified', 'role:admin,manager,cashier,viewer'])->pr
     Route::get('/shifts/{shift}/edit', [ShiftController::class, 'edit'])->middleware('can:shifts.update')->name('shifts.edit');
     Route::patch('/shifts/{shift}', [ShiftController::class, 'update'])->middleware('can:shifts.update')->name('shifts.update');
     Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy'])->middleware('can:shifts.destroy')->name('shifts.destroy');
+
+    Route::get('/counterparties', [CounterpartyController::class, 'index'])->name('counterparties.index');
+    Route::get('/counterparties/create', [CounterpartyController::class, 'create'])->middleware('can:counterparties.create')->name('counterparties.create');
+    Route::post('/counterparties', [CounterpartyController::class, 'store'])->middleware('can:counterparties.create')->name('counterparties.store');
+    Route::get('/counterparties/{counterparty}', [CounterpartyController::class, 'show'])->name('counterparties.show');
+    Route::get('/counterparties/{counterparty}/edit', [CounterpartyController::class, 'edit'])->middleware('can:counterparties.update')->name('counterparties.edit');
+    Route::patch('/counterparties/{counterparty}', [CounterpartyController::class, 'update'])->middleware('can:counterparties.update')->name('counterparties.update');
+    Route::delete('/counterparties/{counterparty}', [CounterpartyController::class, 'destroy'])->middleware('can:counterparties.destroy')->name('counterparties.destroy');
+
+    Route::get('/product-receipts', [ProductReceiptController::class, 'index'])->name('product-receipts.index');
+    Route::get('/product-receipts/create', [ProductReceiptController::class, 'create'])->middleware('can:product-receipts.create')->name('product-receipts.create');
+    Route::post('/product-receipts', [ProductReceiptController::class, 'store'])->middleware('can:product-receipts.create')->name('product-receipts.store');
+    Route::get('/product-receipts/{productReceipt}', [ProductReceiptController::class, 'show'])->name('product-receipts.show');
+    Route::patch('/product-receipts/{productReceipt}', [ProductReceiptController::class, 'update'])->middleware('can:product-receipts.update')->name('product-receipts.update');
+    Route::delete('/product-receipts/{productReceipt}', [ProductReceiptController::class, 'destroy'])->middleware('can:product-receipts.destroy')->name('product-receipts.destroy');
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserController::class, 'index'])->name('users.index');

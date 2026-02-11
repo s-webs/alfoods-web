@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CounterpartyController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductReceiptController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\SetController;
 use App\Http\Controllers\Api\ShiftController;
@@ -30,4 +32,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('sales', SaleController::class);
     Route::apiResource('cashiers', CashierController::class);
     Route::apiResource('shifts', ShiftController::class);
+    Route::apiResource('counterparties', CounterpartyController::class);
+    Route::apiResource('product-receipts', ProductReceiptController::class);
 });
