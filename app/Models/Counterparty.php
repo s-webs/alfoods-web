@@ -14,4 +14,9 @@ class Counterparty extends Model
     {
         return $this->hasMany(ProductReceipt::class);
     }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
 }

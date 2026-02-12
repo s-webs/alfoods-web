@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductSet;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +18,7 @@ class SaleController extends Controller
 {
     public function index(): JsonResponse
     {
-        $sales = Sale::with(['cashier', 'shift'])->orderByDesc('created_at')->get();
+        $sales = Sale::with(['cashier', 'shift', 'counterparty'])->orderByDesc('created_at')->get();
 
         return response()->json($sales);
     }
@@ -57,6 +58,9 @@ class SaleController extends Controller
                 'cashier_id' => $data['cashier_id'] ?? null,
                 'shift_id' => $data['shift_id'] ?? null,
                 'shopper_id' => $data['shopper_id'] ?? null,
+                'counterparty_id' => $data['counterparty_id'] ?? null,
+                'is_on_credit' => $data['is_on_credit'] ?? false,
+                'paid_amount' => 0,
                 'items' => $items,
                 'total_qty' => (int) round($totalQty),
                 'total_price' => round($totalPrice, 2),
@@ -64,12 +68,12 @@ class SaleController extends Controller
             ]);
         });
 
-        return response()->json($sale->load(['cashier', 'shift']), 201);
+        return response()->json($sale->load(['cashier', 'shift', 'counterparty']), 201);
     }
 
     public function show(Sale $sale): JsonResponse
     {
-        return response()->json($sale->load(['cashier', 'shift']));
+        return response()->json($sale->load(['cashier', 'shift', 'counterparty', 'debtPayments']));
     }
 
     public function update(UpdateSaleRequest $request, Sale $sale): JsonResponse
@@ -101,7 +105,45 @@ class SaleController extends Controller
             $sale->update($data);
         }
 
-        return response()->json($sale->load(['cashier', 'shift']));
+        return response()->json($sale->load(['cashier', 'shift', 'counterparty']));
+    }
+
+    public function payDebt(Sale $sale, Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'payment_date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        if (!$sale->is_on_credit) {
+            return response()->json(
+                ['message' => 'Эта продажа не оформлена как продажа в долг.'],
+                422
+            );
+        }
+
+        $remainingDebt = $sale->remaining_debt;
+        if ($validated['amount'] > $remainingDebt) {
+            return response()->json(
+                ['message' => "Сумма оплаты ({$validated['amount']}) превышает остаток долга ({$remainingDebt})."],
+                422
+            );
+        }
+
+        DB::transaction(function () use ($sale, $validated) {
+            \App\Models\DebtPayment::create([
+                'sale_id' => $sale->id,
+                'counterparty_id' => $sale->counterparty_id,
+                'amount' => $validated['amount'],
+                'payment_date' => $validated['payment_date'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            $sale->increment('paid_amount', $validated['amount']);
+        });
+
+        return response()->json($sale->fresh()->load(['cashier', 'shift', 'counterparty', 'debtPayments']));
     }
 
     public function storeReturn(StoreReturnRequest $request): JsonResponse

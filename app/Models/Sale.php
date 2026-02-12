@@ -10,12 +10,15 @@ class Sale extends Model
     public const STATUS_RETURNED = 'returned';
 
     protected $fillable = [
-        'cashier_id', 'shift_id', 'shopper_id', 'items', 'total_qty', 'total_price', 'status',
+        'cashier_id', 'shift_id', 'shopper_id', 'counterparty_id', 'is_on_credit', 'paid_amount',
+        'items', 'total_qty', 'total_price', 'status',
     ];
 
     protected $casts = [
         'items' => 'array',
-        'total_price' => 'float'
+        'total_price' => 'float',
+        'paid_amount' => 'float',
+        'is_on_credit' => 'boolean',
     ];
 
     public function cashier()
@@ -26,5 +29,25 @@ class Sale extends Model
     public function shift()
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    public function counterparty()
+    {
+        return $this->belongsTo(Counterparty::class);
+    }
+
+    public function debtPayments()
+    {
+        return $this->hasMany(DebtPayment::class);
+    }
+
+    public function getRemainingDebtAttribute(): float
+    {
+        if (!$this->is_on_credit) {
+            return 0;
+        }
+
+        $totalPaid = $this->paid_amount + $this->debtPayments->sum('amount');
+        return max(0, $this->total_price - $totalPaid);
     }
 }

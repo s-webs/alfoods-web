@@ -19,6 +19,8 @@ class StoreSaleRequest extends FormRequest
             'cashier_id' => ['nullable', 'integer', 'exists:cashiers,id'],
             'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
             'shopper_id' => ['nullable', 'integer'],
+            'counterparty_id' => ['nullable', 'integer', 'exists:counterparties,id'],
+            'is_on_credit' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'min:0'], // 0 = произвольная позиция или сет
             'items.*.set_id' => ['nullable', 'integer', 'exists:product_sets,id'],
