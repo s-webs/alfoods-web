@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProductReceiptController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\SetController;
 use App\Http\Controllers\Api\ShiftController;
+use App\Http\Controllers\Api\TaskController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,4 +41,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('debt-payments', [DebtPaymentController::class, 'index']);
     Route::post('debt-payments', [DebtPaymentController::class, 'store']);
     Route::get('debtors', [DebtorController::class, 'index']);
+    Route::get('tasks/today', [TaskController::class, 'getTodayTasks']);
+    Route::apiResource('tasks', TaskController::class);
 });
