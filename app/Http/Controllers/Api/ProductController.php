@@ -14,15 +14,33 @@ class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $products = Product::query()
+        $query = Product::query()
             ->with('category')
             ->when($request->boolean('active'), fn ($q) => $q->where('is_active', true))
             ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->category_id))
             ->when($request->filled('barcode'), fn ($q) => $q->where('barcode', $request->barcode))
-            ->orderBy('name')
-            ->get();
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = mb_strtolower($request->search);
+                $pattern = '%' . $search . '%';
+                $q->where(function ($sub) use ($pattern) {
+                    $sub->whereRaw('LOWER(name) LIKE ?', [$pattern])
+                        ->orWhereRaw('LOWER(barcode) LIKE ?', [$pattern]);
+                });
+            })
+            ->orderBy('name');
 
-        return response()->json($products);
+        $perPage = $request->integer('per_page', 0);
+        if ($perPage > 0) {
+            $paginator = $query->paginate(min($perPage, 100));
+            return response()->json([
+                'data' => $paginator->items(),
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+            ]);
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(StoreProductRequest $request): JsonResponse

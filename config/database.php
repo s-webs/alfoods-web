@@ -98,6 +98,20 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        'pgsql_remote' => [
+            'driver' => 'pgsql',
+            'host' => env('PG_REMOTE_HOST', '127.0.0.1'),
+            'port' => env('PG_REMOTE_PORT', '5432'),
+            'database' => env('PG_REMOTE_DATABASE', 'laravel'),
+            'username' => env('PG_REMOTE_USERNAME', 'root'),
+            'password' => env('PG_REMOTE_PASSWORD', ''),
+            'charset' => env('PG_REMOTE_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('PG_REMOTE_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

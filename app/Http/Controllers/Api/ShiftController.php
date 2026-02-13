@@ -12,7 +12,7 @@ class ShiftController extends Controller
 {
     public function index(): JsonResponse
     {
-        $shifts = Shift::all();
+        $shifts = Shift::orderByDesc('id')->get();
 
         return response()->json($shifts);
     }

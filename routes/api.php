@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('debt-payments', [DebtPaymentController::class, 'index']);
     Route::post('debt-payments', [DebtPaymentController::class, 'store']);
     Route::get('debtors', [DebtorController::class, 'index']);
+    Route::post('counterparties/{counterparty}/pay-debt-bulk', [DebtorController::class, 'payDebtBulk']);
     Route::get('tasks/today', [TaskController::class, 'getTodayTasks']);
     Route::apiResource('tasks', TaskController::class);
 });
