@@ -47,7 +47,9 @@ class Sale extends Model
             return 0;
         }
 
-        $totalPaid = $this->paid_amount + $this->debtPayments->sum('amount');
-        return max(0, $this->total_price - $totalPaid);
+        // Используем только paid_amount: при каждой оплате (pay-debt или pay-debt-bulk)
+        // создаётся DebtPayment и вызывается increment('paid_amount'), поэтому
+        // суммировать debtPayments->sum('amount') вместе с paid_amount — двойной учёт.
+        return max(0, $this->total_price - (float) $this->paid_amount);
     }
 }
